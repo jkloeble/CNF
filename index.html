@@ -32,12 +32,10 @@
     position: absolute; left: 50%; top: 895px; transform: translateX(-50%) scale(.96);
     width: calc(518px + 8 * 14px); height: 700px;
     background: #FFFFFF; border-radius: 56px; opacity: 0;
-    box-shadow: 0 2px 6px rgba(0,0,61,.06), 0 40px 90px -20px rgba(0,0,61,.28);
-    transition: opacity .9s ease, transform 1.2s cubic-bezier(.2,.8,.2,1);
+    box-shadow: 0 24px 48px -16px rgba(0,0,61,.22);
+    transition: opacity .45s ease, transform .6s cubic-bezier(.2,.8,.2,1);
   }
   canvas { position: absolute; inset: 0; width: 1080px !important; height: 1920px !important; }
-  .veil { position: absolute; inset: 0; pointer-events: none;
-    background: linear-gradient(to bottom, var(--bg) 0%, var(--bg) 33%, transparent 44%); }
 
   .brand { position: absolute; left: 0; right: 0; top: 92px; text-align: center; }
   .brand .logo {                /* echtes DASU-Logo als Maske: blau im hellen, hell im dunklen Modus */
@@ -50,15 +48,15 @@
 
   .copy {
     position: absolute; left: 96px; right: 96px; top: 330px; text-align: center;
-    transition: opacity .8s ease, transform 1s cubic-bezier(.2,.8,.2,1);
+    transition: opacity .4s ease, transform .5s cubic-bezier(.2,.8,.2,1);
   }
   h1 { font-size: 88px; line-height: 1.04; font-weight: 800; letter-spacing: -0.04em; max-width: 860px; margin: 0 auto; text-wrap: balance; }
   .lead { margin: 40px auto 0; max-width: 760px; font-size: 36px; line-height: 1.45; color: var(--ink-soft); text-wrap: balance; }
   .copy.active { opacity: 0; transform: translateY(24px); }
   .stage.on .copy.idle { opacity: 0; transform: translateY(-24px); }
-  .stage.on .copy.active { opacity: 1; transform: none; transition-delay: .5s; }
+  .stage.on .copy.active { opacity: 1; transform: none; transition-delay: .2s; }
 
-  .final { position: absolute; left: 281px; top: 951px; width: 518px; opacity: 0; transition: opacity .7s ease; }
+  .final { position: absolute; left: 281px; top: 951px; width: 518px; opacity: 0; transition: opacity .3s ease; }
   .qr { display: block; width: 518px; height: 518px; fill: #0000F5; stroke: #0000F5; }
   .qr circle, .qr rect:not(.ring) { stroke: none; }
   .final p { margin-top: 32px; text-align: center; font-size: 32px; font-weight: 500; color: #00003D; white-space: nowrap; }
@@ -77,6 +75,8 @@
     box-shadow: 0 10px 30px -10px rgba(0,0,61,.3);
   }
   .panel.hidden { display: none; }
+  body.kiosk .panel { display: none; }
+  body.kiosk { cursor: none; }
   .panel h2 { font-size: 13px; font-weight: 600; margin-bottom: 10px; }
   .status { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
   .status i { width: 10px; height: 10px; border-radius: 50%; background: #9AA0C8; transition: background .3s; }
@@ -99,7 +99,6 @@
 <div class="stage" id="stage">
   <div class="plate" id="plate"></div>
   <canvas id="field"></canvas>
-  <div class="veil"></div>
 
   <header class="brand">
     <i class="logo" role="img" aria-label="DASU"></i>
@@ -165,7 +164,7 @@
   for (let c = 0; c < 11; c++) {
     const r = 1.4 + rnd() * 4.4, C = unit().map(v => v * r), a = unit(), b = unit();
     const len = 1.0 + rnd() * 2.4, bend = (rnd() - 0.5) * 2.4, sig = 0.07 + rnd() * 0.16;
-    const n = 800 + Math.floor(rnd() * 1500), tone = rnd(), members = [];
+    const n = 420 + Math.floor(rnd() * 760), tone = rnd(), members = [];
     for (let k = 0; k < n; k++) {
       const t = rnd() * 2 - 1, w = Math.pow(1 - Math.abs(t), 0.6);
       members.push(pts.length);
@@ -174,11 +173,11 @@
     pts.push({ p: C.slice(), tone, s: rnd(), c: -2 });
     clusters.push(members);
   }
-  for (let k = 0; k < 900; k++) { const d = unit(), r = 1 + Math.pow(rnd(), 0.7) * 6.5; pts.push({ p: d.map(v => v*r), tone: rnd(), s: rnd(), c: -1 }); }
+  for (let k = 0; k < 500; k++) { const d = unit(), r = 1 + Math.pow(rnd(), 0.7) * 6.5; pts.push({ p: d.map(v => v*r), tone: rnd(), s: rnd(), c: -1 }); }
 
   const edges = [];
   for (const m of clusters) for (const i of m) {
-    if (rnd() > 0.3) continue;
+    if (rnd() > 0.35) continue;
     let best = [[1e9,-1],[1e9,-1]];
     for (const j of m) if (j !== i) {
       const a = pts[i].p, b = pts[j].p, d = (a[0]-b[0])**2 + (a[1]-b[1])**2 + (a[2]-b[2])**2;
@@ -204,7 +203,7 @@
   targets.forEach((t, k) => { aTarget.set(t, pool[k] * 3); aQR[pool[k]] = 1; });
 
   /* ── three.js ──────────────────────────────────────────────── */
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true, powerPreference: 'high-performance' });
   renderer.setClearColor(0x000000, 0);
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(FOV, W / H, 0.1, 100);
@@ -219,7 +218,8 @@
   const uniforms = {
     uTime: { value: 0 }, uFocal: { value: 1 }, uPR: { value: 1 }, uMorph: { value: 0 }, uModule: { value: MOD },
     uCloud: { value: new THREE.Matrix4() }, uQC: { value: new THREE.Vector2(qcx, qcy) }, uQH: { value: new THREE.Vector2(...qh) },
-    uA: { value: new THREE.Color() }, uB: { value: new THREE.Color() }, uQ: { value: new THREE.Color(0x0000F5) }
+    uA: { value: new THREE.Color() }, uB: { value: new THREE.Color() }, uQ: { value: new THREE.Color(0x0000F5) },
+    uRes: { value: H }, uVeil: { value: new THREE.Vector2(H * 0.33, H * 0.44) }
   };
   const drift = `vec3 drift(vec3 p, float s, float t){
       return p + vec3(sin(t*0.21 + s*6.283), sin(t*0.17 + s*4.1), cos(t*0.19 + s*5.3)) * 0.07; }`;
@@ -243,7 +243,7 @@
       void main(){
         vec3 cw = (uCloud * vec4(drift(position, aSeed, uTime), 1.0)).xyz;
         float e = 0.0;
-        if (aQR > 0.5) { float d0 = aSeed * 0.38; e = smoothstep(d0, d0 + 0.62, uMorph); }
+        if (aQR > 0.5) { float d0 = aSeed * 0.3; e = smoothstep(d0, d0 + 0.7, uMorph); }
         vec3 w = mix(cw, aTarget, e);
         float arc = e * (1.0 - e) * 4.0;                       // weicher Bogen auf dem Flug
         w += vec3(sin(aSeed * 41.0), cos(aSeed * 29.0), 0.8) * arc * 1.4 * aQR;
@@ -260,19 +260,21 @@
         vDepth = mix(smoothstep(29.0, 15.0, dist), 1.0, e);
         vTone = aTone; vE = e; vPart = part * (1.0 - aQR);
         vRing = step(1.5, aSize) * (1.0 - aQR);
-        float cloudPx = 0.03 * aSize * uFocal / dist * (vRing > 0.5 ? 3.2 : 1.0);
+        float cloudPx = 0.036 * aSize * uFocal / dist * (vRing > 0.5 ? 3.2 : 1.0);
         gl_PointSize = mix(cloudPx, uModule * 0.88 * uPR, e);
         gl_Position = projectionMatrix * mv;
       }`,
     fragmentShader: `
-      uniform vec3 uA, uB, uQ;
+      uniform vec3 uA, uB, uQ; uniform float uRes, uPR; uniform vec2 uVeil;
       varying float vDepth, vTone, vRing, vE, vPart;
       void main(){
+        float sy = (uRes - gl_FragCoord.y) / uPR;                 // Bühnen-y in px
+        float veil = mix(smoothstep(uVeil.x, uVeil.y, sy), 1.0, vE); // oben hinter dem Text ausblenden
         float d = length(gl_PointCoord - 0.5), aa = fwidth(d) * 1.2;
         float disc = 1.0 - smoothstep(0.5 - aa, 0.5, d);
         float ring = disc * smoothstep(0.42 - aa, 0.42, d) + (1.0 - smoothstep(0.1 - aa, 0.1, d));
         float a = mix(disc, ring, vRing) * mix(0.12, 0.9, vDepth) * mix(1.0, 0.5, vPart);
-        a = mix(a, disc, vE);
+        a = mix(a, disc, vE) * veil;
         if (a < 0.01) discard;
         gl_FragColor = vec4(mix(mix(uA, uB, vTone * 0.55), uQ, vE), a);
       }`,
@@ -290,8 +292,9 @@
     vertexShader: `uniform float uTime; uniform mat4 uCloud; attribute float aSeed; varying float vDepth; ${drift}
       void main(){ vec4 mv = viewMatrix * uCloud * vec4(drift(position, aSeed, uTime), 1.0);
         vDepth = smoothstep(29.0, 15.0, -mv.z); gl_Position = projectionMatrix * mv; }`,
-    fragmentShader: `uniform vec3 uA; uniform float uMorph; varying float vDepth;
-      void main(){ gl_FragColor = vec4(uA, mix(0.03, 0.14, vDepth) * (1.0 - smoothstep(0.0, 0.4, uMorph))); }`
+    fragmentShader: `uniform vec3 uA; uniform float uMorph, uRes, uPR; uniform vec2 uVeil; varying float vDepth;
+      void main(){ float veil = smoothstep(uVeil.x, uVeil.y, (uRes - gl_FragCoord.y) / uPR);
+        gl_FragColor = vec4(uA, mix(0.03, 0.14, vDepth) * (1.0 - smoothstep(0.0, 0.4, uMorph)) * veil); }`
   });
   scene.add(new THREE.LineSegments(lg, lineMat));
 
@@ -302,31 +305,43 @@
   }
   dark.addEventListener?.('change', applyTheme); applyTheme();
 
+  const QUALITY = [1, 0.8, 0.65];                 // Renderauflösung relativ zum Display
+  let qLevel = 0;
   function layout() {
     scale = Math.min(innerWidth / W, innerHeight / H);
     stage.style.transform = `scale(${scale}) translate(-50%, -50%)`;
-    const pr = Math.min(devicePixelRatio || 1, 2) * scale;
+    const pr = Math.min((devicePixelRatio || 1) * scale, 1) * QUALITY[qLevel];   // max. physische Pixel
     renderer.setPixelRatio(pr); renderer.setSize(W, H, false);
-    uniforms.uPR.value = pr;
+    uniforms.uPR.value = pr; uniforms.uRes.value = H * pr;
     uniforms.uFocal.value = (H * pr / 2) / TAN;
   }
 
-  /* ── Einstellungen der Personenerkennung ───────────────────── */
+  /* ── Einstellungen ─────────────────────────────────────────── */
   const CFG = {
-    enterMs: 500,        // so lange muss jemand da sein, bevor der Code entsteht (filtert Vorbeilaufende)
-    leaveMs: 1800,       // so lange niemand mehr im Bild, bevor der Code sich auflöst (überbrückt kurze Verdeckungen)
-    minHeight: 0.28,     // Person zählt erst ab diesem Anteil der Bildhöhe, also nah genug an der Stele
-    minScore: 0.5,       // Mindest-Sicherheit der KI-Erkennung
-    intervalMs: 150,     // Prüfintervall
-    stallMs: 3000        // liefert die Kamera so lange nichts, gilt das Bild als leer
+    detector: 'face',    // 'face' = Gesichtserkennung (sehr schnell, Standard) | 'person' = Ganzkörper (genauer, deutlich langsamer)
+    enterMs: 250,        // so lange muss jemand da sein, bevor der Code entsteht
+    leaveMs: 1200,       // so lange niemand im Bild, bevor der Code sich auflöst (überbrückt kurzes Wegdrehen)
+    minFace: 0.10,       // Gesicht zählt ab diesem Anteil der Bildhöhe (= nah genug an der Stele)
+    minPerson: 0.28,     // Person zählt ab diesem Anteil der Bildhöhe (nur bei detector 'person')
+    minScore: 0.5,
+    intervalMs: 100,     // Pause zwischen zwei Erkennungen
+    stallMs: 3000,
+    buildSec: 1.3,       // Dauer: Punkte formen den Code
+    dissolveSec: 0.8     // Dauer: Code löst sich auf
   };
   const MP_VERSION = '0.10.14';
-  const MP_MODEL = 'https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/1/efficientdet_lite0.tflite';
+  const MP_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSION}`;
+  const MODELS = {
+    face:   'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite',
+    person: 'https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/int8/1/efficientdet_lite0.tflite'
+  };
+  const params = new URLSearchParams(location.search);
+  const KIOSK = params.has('kiosk');                // ?kiosk → Kamera startet automatisch, Steuerfeld aus
+  if (params.get('detector') === 'person') CFG.detector = 'person';
 
-  /* ── Zustand mit Hysterese: an nach enterMs Anwesenheit, aus nach leaveMs Leere ── */
+  /* ── Zustand mit Hysterese ─────────────────────────────────── */
   let simulated = false, touchUntil = 0, morph = 0, locked = false;
   let camOn = false, persons = 0, presentSince = null, absentSince = performance.now(), lastResult = 0;
-
   function report(count) {
     const now = performance.now();
     persons = count; lastResult = now;
@@ -335,87 +350,97 @@
   }
   function updateCamState() {
     const now = performance.now();
-    if (camOn && lastResult && now - lastResult > CFG.stallMs) report(0);          // Kamera hängt → leer
+    if (camOn && lastResult && now - lastResult > CFG.stallMs) report(0);
     if (!camOn && presentSince !== null && now - presentSince >= CFG.enterMs) camOn = true;
     if (camOn && absentSince !== null && now - absentSince >= CFG.leaveMs) camOn = false;
   }
   const isActive = () => simulated || camOn || performance.now() < touchUntil;
 
   const statusEl = document.getElementById('status'), statusText = document.getElementById('statusText');
-  function updateUI(active) {
-    stage.classList.toggle('on', active);
-    statusEl.classList.toggle('yes', active);
-    const who = persons === 1 ? '1 Person im Bild' : persons > 1 ? `${persons} Personen im Bild` : 'Niemand im Bild';
-    statusText.textContent = (active ? 'Code sichtbar' : 'Ruhezustand') + (stream ? ` · ${who}` : '');
+  let uiActive = null, uiText = '';
+  function updateUI(active) {                       // DOM nur bei Änderung anfassen
+    if (active !== uiActive) { uiActive = active; stage.classList.toggle('on', active); statusEl.classList.toggle('yes', active); }
+    const who = persons === 1 ? '1 Person' : persons > 1 ? `${persons} Personen` : 'niemand';
+    const t = (active ? 'Code sichtbar' : 'Ruhezustand') + (stream ? ` · ${who} im Bild` : '');
+    if (t !== uiText) { uiText = t; statusText.textContent = t; }
   }
 
-  /* ── Kamera ─────────────────────────────────────────────────── */
+  /* ── Kamera & Erkennung ────────────────────────────────────── */
   const video = document.getElementById('video'), camInfo = document.getElementById('camInfo');
   const overlay = document.getElementById('overlay'), octx = overlay.getContext('2d');
   const btnCam = document.getElementById('btnCam'), btnSim = document.getElementById('btnSim');
-  let stream = null, mpDetector = null, mode = 'none';
+  let stream = null, mp = null, mode = 'none', lastVideoTime = -1;
 
   async function startCamera() {
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 }, audio: false });
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 480 }, height: { ideal: 360 }, frameRate: { ideal: 15, max: 20 } }, audio: false });
     } catch (e) {
-      camInfo.textContent = 'Kamera nicht verfügbar. In der Vorschau ist sie meist gesperrt: Datei lokal in Chrome öffnen und Zugriff erlauben.';
+      camInfo.textContent = 'Kamera nicht verfügbar. Seite über https öffnen und Kamerazugriff erlauben.';
       return;
     }
     video.srcObject = stream; await video.play();
-    document.getElementById('preview').classList.add('show');
+    if (!KIOSK) document.getElementById('preview').classList.add('show');
     btnCam.textContent = 'Kamera aktiv'; btnCam.disabled = true;
     mode = 'motion';
-    camInfo.textContent = 'Erkennung: Bewegungsanalyse. KI-Personenerkennung wird geladen …';
-    setInterval(tick, CFG.intervalMs);
+    camInfo.textContent = 'Erkennung: Bewegungsanalyse. KI-Erkennung wird geladen …';
     loadMediaPipe();
+    detectLoop();
   }
 
-  /* KI-Personenerkennung (MediaPipe, EfficientDet-Lite0): zählt jede Person einzeln */
   async function loadMediaPipe() {
     try {
-      const base = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSION}`;
-      const vision = await import(`${base}/vision_bundle.mjs`);
-      const files = await vision.FilesetResolver.forVisionTasks(`${base}/wasm`);
-      const opts = d => ({ baseOptions: { modelAssetPath: MP_MODEL, delegate: d }, runningMode: 'VIDEO',
-        categoryAllowlist: ['person'], scoreThreshold: CFG.minScore, maxResults: 10 });
-      try { mpDetector = await vision.ObjectDetector.createFromOptions(files, opts('GPU')); }
-      catch (e) { mpDetector = await vision.ObjectDetector.createFromOptions(files, opts('CPU')); }
+      const vision = await import(`${MP_BASE}/vision_bundle.mjs`);
+      const files = await vision.FilesetResolver.forVisionTasks(`${MP_BASE}/wasm`);
+      const face = CFG.detector === 'face';
+      const Task = face ? vision.FaceDetector : vision.ObjectDetector;
+      const opts = d => Object.assign(
+        { baseOptions: { modelAssetPath: MODELS[CFG.detector], delegate: d }, runningMode: 'VIDEO' },
+        face ? { minDetectionConfidence: CFG.minScore }
+             : { categoryAllowlist: ['person'], scoreThreshold: CFG.minScore, maxResults: 6 });
+      // CPU zuerst: die Grafikkarte bleibt frei für die Animation
+      try { mp = await Task.createFromOptions(files, opts('CPU')); }
+      catch (e) { mp = await Task.createFromOptions(files, opts('GPU')); }
       mode = 'mediapipe';
-      camInfo.textContent = 'Erkennung: KI-Personenerkennung (MediaPipe), lokal im Browser.';
+      camInfo.textContent = face ? 'Erkennung: KI-Gesichtserkennung (MediaPipe), lokal.' : 'Erkennung: KI-Personenerkennung (MediaPipe), lokal.';
     } catch (e) {
-      camInfo.textContent = 'Erkennung: Bewegungsanalyse (KI-Modell nicht erreichbar, Offline-Rückfall).';
+      camInfo.textContent = 'Erkennung: Bewegungsanalyse (KI-Modell nicht erreichbar).';
     }
   }
 
+  // Erkennung läuft nacheinander, nie überlappend, und nur bei neuem Kamerabild
+  function detectLoop() {
+    try { tick(); } catch (e) {}
+    setTimeout(detectLoop, CFG.intervalMs);
+  }
   function tick() {
-    if (video.readyState < 2) return;
-    const vw = video.videoWidth, vh = video.videoHeight;
-    if (overlay.width !== vw) { overlay.width = vw; overlay.height = vh; }
-    octx.clearRect(0, 0, vw, vh);
+    if (video.readyState < 2 || video.currentTime === lastVideoTime) return;
+    lastVideoTime = video.currentTime;
+    const vw = video.videoWidth, vh = video.videoHeight, draw = !KIOSK && !document.getElementById('panel').classList.contains('hidden');
+    if (draw) { if (overlay.width !== vw) { overlay.width = vw; overlay.height = vh; } octx.clearRect(0, 0, vw, vh); }
     if (mode === 'mediapipe') {
       let res;
-      try { res = mpDetector.detectForVideo(video, performance.now()); } catch (e) { mode = 'motion'; return; }
+      try { res = mp.detectForVideo(video, performance.now()); } catch (e) { mode = 'motion'; return; }
+      const min = CFG.detector === 'face' ? CFG.minFace : CFG.minPerson;
       let n = 0;
       for (const d of res.detections) {
-        const b = d.boundingBox, near = b.height / vh >= CFG.minHeight;
+        const b = d.boundingBox, near = b.height / vh >= min;
         if (near) n++;
-        octx.lineWidth = 4; octx.strokeStyle = near ? '#0000F5' : 'rgba(150,155,200,.9)';
-        octx.strokeRect(b.originX, b.originY, b.width, b.height);
+        if (draw) { octx.lineWidth = 4; octx.strokeStyle = near ? '#0000F5' : 'rgba(150,155,200,.9)'; octx.strokeRect(b.originX, b.originY, b.width, b.height); }
       }
       report(n);
     } else {
-      report(motionDetect(vw, vh));
+      report(motionDetect(vw, vh, draw));
     }
   }
 
   /* Offline-Rückfall: Hintergrundmodell mit selektivem Lernen.
      Nur Pixel ohne Vordergrund lernen schnell mit, Personen werden also nicht "eingelernt".
      Verlässt die Person das Bild, ist der Vordergrund sofort weg. */
-  const MW = 80, MH = 60, mc = document.createElement('canvas'); mc.width = MW; mc.height = MH;
+  const MW = 64, MH = 48, mc = document.createElement('canvas'); mc.width = MW; mc.height = MH;
   const mctx = mc.getContext('2d', { willReadFrequently: true });
   let bg = null, prev = null, learn = 0, stillSince = null;
-  function motionDetect(vw, vh) {
+  function motionDetect(vw, vh, draw) {
     mctx.drawImage(video, 0, 0, MW, MH);
     const px = mctx.getImageData(0, 0, MW, MH).data, n = MW * MH, g = new Float32Array(n);
     for (let i = 0; i < n; i++) g[i] = px[i*4]*.3 + px[i*4+1]*.59 + px[i*4+2]*.11;
@@ -432,12 +457,12 @@
       bg[i] += (g[i] - bg[i]) * (isFg ? 0.0008 : 0.06);
     }
     prev = g;
-    const frac = fg / n, present = frac > 0.05 && (maxY - minY) / MH >= CFG.minHeight;
+    const frac = fg / n, present = frac > 0.05 && (maxY - minY) / MH >= CFG.minPerson;
     // Schutz vor Dauer-Fehlalarm: ändert sich die Szene 25 s lang gar nicht, wird der Hintergrund neu gelernt
     if (present && moving / n < 0.004) { if (stillSince === null) stillSince = performance.now();
       if (performance.now() - stillSince > 25000) { learn = 0; stillSince = null; } }
     else stillSince = null;
-    if (present) {
+    if (present && draw) {
       octx.lineWidth = 4; octx.strokeStyle = '#0000F5';
       octx.strokeRect(minX / MW * vw, minY / MH * vh, (maxX - minX) / MW * vw, (maxY - minY) / MH * vh);
     }
@@ -456,28 +481,32 @@
   addEventListener('resize', layout);
 
   /* ── Loop ──────────────────────────────────────────────────── */
-  const clock = new THREE.Clock();
-  function frame() {
-    const dt = Math.min(clock.getDelta(), 0.05);
+  let last = performance.now(), fpsT = 0, fpsN = 0;
+  function frame(now) {
+    const dt = Math.min((now - last) / 1000, 0.25); last = now;   // echte Zeit: Code baut sich auch bei wenig fps pünktlich auf
     updateCamState();
     const active = isActive();
     updateUI(active);
-    const goal = active ? 1 : 0;
     if (!active && locked) { locked = false; stage.classList.remove('locked'); }
-    const speed = reduce ? 100 : (active ? 1 / 2.8 : 1 / 2.0);
+    const goal = active ? 1 : 0, speed = reduce ? 100 : 1 / (active ? CFG.buildSec : CFG.dissolveSec);
     morph += Math.sign(goal - morph) * Math.min(Math.abs(goal - morph), dt * speed);
     if (active && morph >= 1 && !locked) { locked = true; stage.classList.add('locked'); }
     uniforms.uMorph.value = morph;
 
     if (!reduce) uniforms.uTime.value += dt;
-    cloud.rotation.y += 0.028 * dt * (1 - morph * 0.6);     // beim Code: Wolke wird ruhiger
+    cloud.rotation.y += 0.028 * dt * (1 - morph * 0.6);
     cloud.updateMatrix(); uniforms.uCloud.value.copy(cloud.matrix);
     renderer.render(scene, camera);
+
+    // automatische Qualitätsstufe: unter ~40 fps wird die Renderauflösung reduziert
+    fpsT += dt; fpsN++;
+    if (fpsT > 2.5) { if (fpsN / fpsT < 40 && qLevel < QUALITY.length - 1) { qLevel++; layout(); } fpsT = 0; fpsN = 0; }
     requestAnimationFrame(frame);
   }
   layout();
   if (document.fonts) document.fonts.ready.then(layout);
-  frame();
+  if (KIOSK) { document.body.classList.add('kiosk'); startCamera(); }
+  requestAnimationFrame(frame);
 })();
 </script>
 </body>
